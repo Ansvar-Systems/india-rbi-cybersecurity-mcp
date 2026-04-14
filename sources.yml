@@ -1,0 +1,22 @@
+schema_version: "1.0"
+mcp_name: "India RBI Cybersecurity MCP"
+category: "regulation"
+
+sources:
+  - name: "RBI Master Directions & Circulars"
+    authority: "Reserve Bank of India"
+    official_portal: "https://rbi.org.in/Scripts/NotificationUser.aspx"
+    retrieval_method: "HTML_SCRAPE"
+    format: "HTML"
+    authentication: "none"
+    update_frequency: "monthly"
+    license:
+      type: "government_terms"
+      url: "https://rbi.org.in"
+      summary: "Public RBI regulatory notifications and master directions"
+    coverage:
+      scope: "Master Direction on IT Governance, Risk Management, Controls & Assurance Practices (2023); Cyber Security Framework for Banks (2016); Digital Payment Security Controls (2024); Digital Lending Guidelines; Outsourcing Directions"
+      version: "Current"
+      item_count: "~50-80 Master Directions, ~200 cyber/IT circulars"
+    languages:
+      - "en"
