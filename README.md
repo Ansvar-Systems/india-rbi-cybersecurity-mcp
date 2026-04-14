@@ -1,6 +1,6 @@
 # India RBI Cybersecurity MCP
 
-> Structured access to Reserve Bank of India (RBI) cybersecurity frameworks, master directions, and circulars — 76 frameworks, 76 indexed provisions, and 139 cybersecurity-relevant circulars from 2015 to 2026, with full-text search and citation-grade metadata.
+> Structured access to Reserve Bank of India (RBI) cybersecurity frameworks, master directions, and circulars — 52 cyber/IT-relevant Master Directions plus 139 cybersecurity-relevant circulars (291 total rows across the `frameworks`, `controls`, and `circulars` tables) from 2015 to 2026, with full-text search and citation-grade metadata.
 
 [![npm](https://img.shields.io/npm/v/@ansvar/india-rbi-cybersecurity-mcp)](https://www.npmjs.com/package/@ansvar/india-rbi-cybersecurity-mcp)
 [![License](https://img.shields.io/badge/license-BSL--1.1-blue.svg)](LICENSE)
@@ -79,10 +79,11 @@ liveness probe at `/health`.
 
 | Source | Version | Count | Completeness |
 |--------|---------|-------|--------------|
-| RBI Frameworks (Master Directions index, IT/cyber-filtered) | 2015–2026 | 76 frameworks | Full (IT/cyber-filtered) |
-| RBI Master Direction provisions | 2015–2026 | 76 control-level rows | Partial (index entries; body ingestion pending) |
-| RBI Notifications / Circulars (IT + cyber keyword filter) | 2015–2026 | 139 circulars | Full within cyber scope |
-| **Total rows** | | **291** | |
+| RBI Master Directions index (`BS_ViewMasterDirections.aspx`, IT/cyber-filtered) | 2015–2026 | 52 Master Directions | Full (344 total on portal, 52 match cyber filter as of 2026-04-14) |
+| RBI Notifications (`NotificationUser.aspx`, year-month Playwright enumeration) | 2015–2026 | 163 circulars | Full within cyber scope |
+| **Deduplicated DB rows** | | **76 frameworks + 139 circulars = 291 total** | (each MD appears once; notifications that duplicate an MD are not re-inserted) |
+
+> Database classification note: the `frameworks` table holds documents whose title contains "framework", "standard", or "guideline" (23 of 52 Master Directions + 53 notifications matching those keywords + 1 seeded Cyber Security Framework = 76). The other 29 Master Directions are stored in the `circulars` table. To search Master Directions specifically, use `in_rbi_search_master_directions`, which spans both tables.
 
 Notable domains covered (by framework count):
 

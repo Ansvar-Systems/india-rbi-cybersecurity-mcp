@@ -26,11 +26,12 @@
       "retrieval_method": "playwright_viewstate_replay",
       "update_frequency": "monthly",
       "item_type": "circulars",
-      "document_count": 139,
-      "expected_items": 139,
+      "document_count": 163,
+      "expected_items": 163,
       "last_scraped": "2026-04-14",
-      "ingested_count": 139,
-      "completeness": "cyber_filtered_full"
+      "ingested_count": 163,
+      "completeness": "cyber_filtered_full",
+      "notes": "~3,100 circulars scanned across 2015-2026; 163 match cyber/IT keyword filter. Stored across frameworks (53) and circulars (110) tables by title-keyword classification."
     },
     {
       "id": "rbi-master-directions",
@@ -39,11 +40,12 @@
       "retrieval_method": "html_scrape",
       "update_frequency": "monthly",
       "item_type": "master_directions",
-      "document_count": 76,
-      "expected_items": 76,
+      "document_count": 52,
+      "expected_items": 52,
       "last_scraped": "2026-04-14",
-      "ingested_count": 76,
-      "completeness": "index_level_full"
+      "ingested_count": 52,
+      "completeness": "index_level_full",
+      "notes": "RBI portal lists 344 Master Directions total; 52 match the cyber/IT keyword filter (verified 2026-04-14). Stored across frameworks (23) and circulars (29) tables by title-keyword classification."
     }
   ],
   "framework_domains": [
