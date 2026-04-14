@@ -1,7 +1,7 @@
 name: Automated Ingestion
 on:
   schedule:
-    - cron: '0 3 1 */3 *'
+    - cron: '0 3 1 * *'
   workflow_dispatch:
     inputs:
       force:
@@ -18,6 +18,8 @@ jobs:
       - uses: actions/setup-node@v4
         with: { node-version: '20' }
       - run: npm ci
+      - name: Install Playwright Chromium
+        run: npx playwright install --with-deps chromium
       - name: Fetch upstream data
         run: npm run ingest:fetch
         env:
