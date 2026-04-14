@@ -49,10 +49,11 @@ async function main(): Promise<void> {
   const controls = (db.prepare("SELECT COUNT(*) AS n FROM controls").get() as { n: number }).n;
   const circulars = (db.prepare("SELECT COUNT(*) AS n FROM circulars").get() as { n: number }).n;
 
-  // Get last-inserted date if available
-  const latestCircular = db
-    .prepare("SELECT date FROM circulars ORDER BY date DESC LIMIT 1")
-    .get() as { date: string } | undefined;
+  // `last_fetched` records when the ingestion pipeline last ran against RBI
+  // sources. Most ingested circulars don't carry a parseable date column (the
+  // RBI page structure varies), so we record the build date rather than the
+  // most-recent circular date.
+  const today = new Date().toISOString().slice(0, 10);
 
   const coverage: CoverageFile = {
     generatedAt: new Date().toISOString(),
@@ -60,11 +61,19 @@ async function main(): Promise<void> {
     version: "0.1.0",
     sources: [
       {
-        name: "RBI Master Directions & Circulars",
+        name: "RBI Notifications (Playwright ViewState replay)",
         url: "https://rbi.org.in/Scripts/NotificationUser.aspx",
-        last_fetched: latestCircular?.date ?? null,
+        last_fetched: today,
         update_frequency: "monthly",
-        item_count: frameworks + controls + circulars,
+        item_count: circulars,
+        status: "current",
+      },
+      {
+        name: "RBI Master Directions (BS_ViewMasterDirections.aspx)",
+        url: "https://rbi.org.in/Scripts/BS_ViewMasterDirections.aspx",
+        last_fetched: today,
+        update_frequency: "monthly",
+        item_count: frameworks + controls,
         status: "current",
       },
     ],

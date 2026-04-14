@@ -3,9 +3,60 @@ mcp_name: "India RBI Cybersecurity MCP"
 category: "regulation"
 
 sources:
-  - name: "RBI Master Directions & Circulars"
+  - name: "RBI Notifications Portal"
     authority: "Reserve Bank of India"
     official_portal: "https://rbi.org.in/Scripts/NotificationUser.aspx"
+    retrieval_method: "PLAYWRIGHT_VIEWSTATE_REPLAY"
+    format: "HTML"
+    authentication: "none"
+    update_frequency: "monthly"
+    enumeration:
+      method: "headless_chromium_postback"
+      year_range: "2015-2026"
+      rate_limit_seconds: 5
+      reason: >
+        The RBI notifications portal is an ASP.NET WebForms application.
+        A JS helper GetYearMonth(year, month) sets two hidden fields
+        (hdnYear, hdnMonth) and triggers a __VIEWSTATE postback on the
+        same URL. Pure HTTP scraping returns only the accordion shell
+        with no entries. The ingestion script drives a headless Chromium
+        via Playwright to replay the postback for every year from 2015
+        to the current year (12-year archive), scrapes the rendered
+        `a[href*='Id=']` anchors, and applies a cyber / IT keyword filter.
+    robots_policy: >
+      `rbi.org.in/robots.txt` returns an "Unauthorised Access" HTML page
+      for every User-Agent tested (curl, generic browser, Ansvar UA), with
+      no machine-readable Disallow directives. The portal itself returns
+      HTTP 200 for the same UA. The ingestion pipeline proceeds on the
+      basis that no explicit machine-readable prohibition exists, uses a
+      real Chrome UA, enforces a 5-second minimum delay between postbacks,
+      and applies 3x exponential backoff on failure. No 403 or 429 was
+      observed during the 2026-04-14 ingestion run (~225 fetches over
+      ~25 minutes).
+    license:
+      type: "government_terms"
+      url: "https://rbi.org.in"
+      summary: "Public RBI regulatory notifications and master directions"
+    coverage:
+      scope: >
+        Cyber Security Framework for Banks (2016); Master Direction on IT
+        Governance, Risk Management, Controls & Assurance Practices (2023);
+        Master Direction on Digital Payment Security Controls (2021,
+        updated 2024); Master Directions on Cyber Resilience for non-bank
+        PSOs (2024); Master Direction on Fraud Risk Management (2024); IT
+        Framework for the NBFC Sector; Outsourcing Directions (2025);
+        Digital Banking Channels Authorisation Directions (2025); KYC,
+        Card Issuance, and Credit Information Reporting Directions (2025);
+        Digital Lending Guidelines (2022); Tokenisation / Card-on-File;
+        related circulars.
+      version: "Current"
+      item_count: "76 master-direction provisions, 139 cybersecurity circulars (2015-2026)"
+    languages:
+      - "en"
+
+  - name: "RBI Master Directions Index"
+    authority: "Reserve Bank of India"
+    official_portal: "https://rbi.org.in/Scripts/BS_ViewMasterDirections.aspx"
     retrieval_method: "HTML_SCRAPE"
     format: "HTML"
     authentication: "none"
@@ -13,10 +64,10 @@ sources:
     license:
       type: "government_terms"
       url: "https://rbi.org.in"
-      summary: "Public RBI regulatory notifications and master directions"
+      summary: "Public RBI master directions index, no postback needed"
     coverage:
-      scope: "Master Direction on IT Governance, Risk Management, Controls & Assurance Practices (2023); Cyber Security Framework for Banks (2016); Digital Payment Security Controls (2024); Digital Lending Guidelines; Outsourcing Directions"
+      scope: "Static index of current Master Directions filtered for IT and cybersecurity relevance"
       version: "Current"
-      item_count: "~50-80 Master Directions, ~200 cyber/IT circulars"
+      item_count: "76 frameworks tracked"
     languages:
       - "en"
