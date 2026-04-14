@@ -79,6 +79,38 @@ interface CircularRow {
 }
 
 // ---------------------------------------------------------------------------
+// Cyber relevance filter (keep in sync with ingest-fetch.ts — defensive check
+// that re-filters cached meta files on every DB build so unrelated titles
+// fetched under an older keyword list don't leak into the circulars table).
+// ---------------------------------------------------------------------------
+
+const CYBER_KEYWORDS = [
+  "cybersecurity", "cyber security", "cyber", "information security",
+  "information technology", "it governance", "it security", "cloud computing",
+  "cloud adoption", "digital payment", "digital lending", "digital banking",
+  "business continuity", "outsourcing", "fintech", "data protection",
+  "incident", "vulnerability", "mobile banking", "internet banking", "fraud",
+  "cert-in", "payment security", "card transaction", "card-on-file",
+  "tokenisation", "tokenization", "virtual currenc", "crypto",
+  "atm ", "atms", "pos ", "contactless card", "e-mandate", "unified payment", "upi",
+  "know your customer", "kyc", "digital banking channel", "credit card",
+  "debit card", "credit information reporting", "issuance and conduct",
+  "aadhaar", "biometric", "authentication mechanism",
+];
+
+const ANTI_KEYWORDS = [
+  "wilful defaulters", "large defaulters", "exposure norms",
+  "sovereign gold bond", "line of credit", "lead bank",
+  "kisan credit card", "interest subvention", "agriculture and allied activities",
+];
+
+function isCyberRelevant(title: string): boolean {
+  const t = title.toLowerCase();
+  if (ANTI_KEYWORDS.some((k) => t.includes(k))) return false;
+  return CYBER_KEYWORDS.some((k) => t.includes(k));
+}
+
+// ---------------------------------------------------------------------------
 // Document classification
 // ---------------------------------------------------------------------------
 
@@ -222,8 +254,14 @@ async function main(): Promise<void> {
   let controlsInserted = 0;
   let circularsInserted = 0;
 
+  let dropped = 0;
   for (const metaFile of metaFiles) {
     const doc: FetchedDocument = JSON.parse(readFileSync(join(RAW_DIR, metaFile), "utf8"));
+    if (!isCyberRelevant(doc.title)) {
+      dropped++;
+      console.log(`  SKIP (not cyber-relevant): ${doc.title}`);
+      continue;
+    }
     const type = classifyDocument(doc);
     console.log(`Processing [${type}]: ${doc.title}`);
 
@@ -281,6 +319,7 @@ Build complete:
   Frameworks : ${frameworksInserted} inserted
   Controls   : ${controlsInserted} inserted
   Circulars  : ${circularsInserted} inserted
+  Dropped    : ${dropped} meta files filtered out (non-cyber titles)
 
 Database: ${DB_PATH}`);
 }

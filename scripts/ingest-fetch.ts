@@ -28,6 +28,7 @@ import {
   unlinkSync,
 } from "node:fs";
 import { join, basename } from "node:path";
+import { chromium, type Browser, type Page } from "playwright";
 
 // ---------------------------------------------------------------------------
 // Configuration
@@ -44,6 +45,15 @@ const MAX_RETRIES = 3;
 const RETRY_BACKOFF_BASE_MS = 2000;
 const REQUEST_TIMEOUT_MS = 60_000;
 const USER_AGENT = "Ansvar-MCP/1.0 (regulatory-data-ingestion; https://ansvar.eu)";
+// Playwright driver uses a real Chrome UA so the ASP.NET portal serves the
+// standard accordion markup rather than a reduced variant.
+const PLAYWRIGHT_UA =
+  "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/126.0.0.0 Safari/537.36";
+// Years to enumerate via Playwright. Cyber-era starts 2011 (G-Sec IT
+// Framework) but the earliest cyber-relevant items of substance land 2015+.
+// 2026 is current year.
+const ENUMERATION_START_YEAR = 2015;
+const ENUMERATION_END_YEAR = new Date().getFullYear();
 
 // Keywords to identify cybersecurity and IT-relevant documents.
 // Matched against the document title (case-insensitive) post-fetch.
@@ -84,6 +94,19 @@ const CYBER_KEYWORDS = [
   "e-mandate",
   "unified payment",
   "upi",
+  // RBI 2025 consolidation exercise — these titles cover cyber-adjacent
+  // controls (authentication, card security, credit data protection).
+  "know your customer",
+  "kyc",
+  "digital banking channel",
+  "credit card",
+  "debit card",
+  "card transaction",
+  "credit information reporting",
+  "issuance and conduct",
+  "aadhaar",
+  "biometric",
+  "authentication mechanism",
 ];
 
 // Words that cause false positives in substring matching — if the title
@@ -96,6 +119,11 @@ const FALSE_POSITIVE_ANTI_KEYWORDS = [
   "sovereign gold bond",
   "line of credit",
   "lead bank",
+  // "Kisan Credit Card" is an agricultural loan scheme, not payment-card security.
+  "kisan credit card",
+  "interest subvention",
+  // Agricultural / rural loan schemes that mention "credit card" incidentally.
+  "agriculture and allied activities",
 ];
 
 // CLI flags
@@ -275,6 +303,164 @@ async function scrapeMasterDirectionsIndex(): Promise<DocumentLink[]> {
     );
     return [];
   }
+}
+
+/**
+ * Playwright-driven enumeration of the RBI Notifications portal.
+ *
+ * The portal uses ASP.NET WebForms with a client-side `GetYearMonth(year, month)`
+ * helper that sets two hidden fields (`hdnYear`, `hdnMonth`) and clicks the
+ * postback submit button. The response is a re-render of the same page with
+ * the selected year/month's circular list in the DOM (all `<a href="NotificationUser.aspx?Id=..."`).
+ *
+ * Strategy per year:
+ *   - Call `GetYearMonth(year, "0")` → "All Months" → entire year's circulars.
+ *   - Wait for the POST round-trip, then scrape every `Id=\d+` anchor + title.
+ *   - Apply cyber keyword filter post-scrape.
+ */
+async function enumerateNotificationsViaPlaywright(): Promise<DocumentLink[]> {
+  console.log(
+    `Playwright enumeration: years ${ENUMERATION_START_YEAR}-${ENUMERATION_END_YEAR}`,
+  );
+  let browser: Browser | null = null;
+  try {
+    browser = await chromium.launch({ headless: true });
+    const ctx = await browser.newContext({ userAgent: PLAYWRIGHT_UA });
+    const page = await ctx.newPage();
+    page.setDefaultTimeout(90_000);
+
+    console.log(`  Navigating to ${PORTAL_URL}`);
+    await page.goto(PORTAL_URL, { waitUntil: "domcontentloaded" });
+    await page
+      .waitForLoadState("networkidle", { timeout: 60_000 })
+      .catch(() => {});
+
+    const collected = new Map<string, DocumentLink>();
+    let totalScanned = 0;
+
+    for (let year = ENUMERATION_END_YEAR; year >= ENUMERATION_START_YEAR; year--) {
+      try {
+        const yearLinks = await scrapeYearViaPostback(page, String(year));
+        const pretotal = (yearLinks as DocumentLink[] & { __total?: number }).__total ?? yearLinks.length;
+        totalScanned += pretotal;
+        let kept = 0;
+        for (const link of yearLinks) {
+          if (!collected.has(link.url)) {
+            collected.set(link.url, link);
+            kept++;
+          }
+        }
+        console.log(
+          `  Year ${year}: ${pretotal} total circulars scanned, ${yearLinks.length} matched cyber filter, ${kept} new (running total: ${collected.size})`,
+        );
+      } catch (err) {
+        console.warn(
+          `  Year ${year}: enumeration failed: ${err instanceof Error ? err.message : String(err)}`,
+        );
+      }
+
+      // Respect RBI's rate limits — 5s between postbacks.
+      await sleep(RATE_LIMIT_MS);
+    }
+
+    console.log(
+      `  Playwright enumeration complete: scanned ${totalScanned} circulars across ${ENUMERATION_END_YEAR - ENUMERATION_START_YEAR + 1} years, kept ${collected.size} cyber-relevant`,
+    );
+    return Array.from(collected.values());
+  } catch (err) {
+    console.warn(
+      `  Playwright enumeration error: ${err instanceof Error ? err.message : String(err)}`,
+    );
+    return [];
+  } finally {
+    if (browser) await browser.close();
+  }
+}
+
+/**
+ * Fire `GetYearMonth(year, "0")` on the RBI portal, wait for the ASP.NET POST
+ * to complete, then scrape filtered `Id=\d+` anchors from the refreshed DOM.
+ */
+async function scrapeYearViaPostback(
+  page: Page,
+  year: string,
+): Promise<DocumentLink[]> {
+  // Retry twice — the ASP.NET postback occasionally returns a stale body if the
+  // hidden-field state hasn't flushed; a second GetYearMonth call settles it.
+  let rawLinks: { title: string; id: string; year: string }[] = [];
+  let totalCirculars = 0;
+  for (let attempt = 0; attempt < 2; attempt++) {
+    // Watch for the form postback response so we don't race the DOM update.
+    const postbackWait = page
+      .waitForResponse(
+        (r) =>
+          r.url().includes("NotificationUser.aspx") &&
+          r.request().method() === "POST",
+        { timeout: 45_000 },
+      )
+      .catch(() => null);
+
+    await page.evaluate((y) => {
+      const w = window as unknown as {
+        GetYearMonth?: (y: string, m: string) => void;
+      };
+      if (typeof w.GetYearMonth !== "function") {
+        throw new Error("GetYearMonth helper is missing on the page");
+      }
+      w.GetYearMonth(y, "0");
+    }, year);
+
+    await postbackWait;
+    await page
+      .waitForLoadState("networkidle", { timeout: 30_000 })
+      .catch(() => {});
+    await page.waitForTimeout(1000);
+
+    const snap = await page.evaluate((selYear) => {
+      const results: { title: string; id: string; year: string }[] = [];
+      const seen = new Set<string>();
+      document.querySelectorAll("a[href*='Id=']").forEach((a) => {
+        const href = a.getAttribute("href") ?? "";
+        const m = /Id=(\d+)/i.exec(href);
+        if (!m) return;
+        const id = m[1]!;
+        if (seen.has(id)) return;
+        seen.add(id);
+        const title = (a.textContent ?? "").trim();
+        if (!title) return;
+        results.push({ title, id, year: selYear });
+      });
+      return results;
+    }, year);
+
+    rawLinks = snap;
+    totalCirculars = snap.length;
+    if (totalCirculars > 0) break;
+    await page.waitForTimeout(2000);
+  }
+
+  const links: DocumentLink[] = [];
+  for (const row of rawLinks) {
+    if (!isCyberRelevant(row.title)) continue;
+    const fullUrl = `${BASE_URL}/Scripts/NotificationUser.aspx?Id=${row.id}&Mode=0`;
+    const filename = `rbi-notification-${row.id}.html`;
+
+    const t = row.title.toLowerCase();
+    let category = "Regulatory";
+    if (t.includes("cyber") || t.includes("security framework")) category = "Cybersecurity";
+    else if (t.includes("outsourc")) category = "Outsourcing";
+    else if (t.includes("cloud") || t.includes("information technology") || t.includes("it governance")) category = "IT Governance";
+    else if (t.includes("digital payment") || t.includes("payment security") || t.includes("tokenis") || t.includes("tokeniz") || t.includes("card") || t.includes("upi") || t.includes("contactless")) category = "Digital Payments";
+    else if (t.includes("digital lending") || t.includes("lending")) category = "Digital Lending";
+    else if (t.includes("fraud")) category = "Fraud Management";
+    else if (t.includes("business continuity") || t.includes("covid")) category = "Business Continuity";
+    else if (t.includes("virtual currenc") || t.includes("crypto")) category = "Virtual Currencies";
+
+    links.push({ title: row.title, url: fullUrl, category, filename });
+  }
+  // Return (links, totalCirculars) so the caller can log pre-filter counts.
+  (links as DocumentLink[] & { __total?: number }).__total = totalCirculars;
+  return links;
 }
 
 async function scrapePortal(): Promise<DocumentLink[]> {
@@ -516,25 +702,35 @@ async function main(): Promise<void> {
     console.log(`Created directory: ${RAW_DIR}`);
   }
 
-  // Three discovery paths:
-  //   1. Notifications portal (JS-driven accordion — usually yields 0 links)
+  // Four discovery paths:
+  //   1. Notifications portal homepage (static — usually yields the current year only)
   //   2. Master Directions static index (reliable, yields several cyber MDs)
   //   3. Curated seed list (getKnownDocuments — verified cyber/IT notifications)
+  //   4. Playwright year-by-year accordion enumeration (form postback replay;
+  //      --skip-playwright disables it for dry-runs / offline debugging)
+  const skipPlaywright = args.includes("--skip-playwright");
   const portalLinks = await scrapePortal();
   const mdIndexLinks = await scrapeMasterDirectionsIndex();
   const seedLinks = getKnownDocuments();
+  const playwrightLinks = skipPlaywright
+    ? []
+    : await enumerateNotificationsViaPlaywright();
 
-  // Merge by URL, preferring portal > MD index > seed for the title metadata
+  // Merge by URL. Order: Playwright > portal > MD index > seed — Playwright's
+  // scraped titles are the ground-truth ASP.NET-rendered strings.
   const seen = new Set<string>();
   let documents: DocumentLink[] = [];
-  for (const list of [portalLinks, mdIndexLinks, seedLinks]) {
+  for (const list of [playwrightLinks, portalLinks, mdIndexLinks, seedLinks]) {
     for (const link of list) {
       if (seen.has(link.url)) continue;
       seen.add(link.url);
       documents.push(link);
     }
   }
-  console.log(`Found ${documents.length} cybersecurity-relevant documents (portal: ${portalLinks.length}, MD index: ${mdIndexLinks.length}, seed: ${seedLinks.length})`);
+  console.log(
+    `Found ${documents.length} cybersecurity-relevant documents ` +
+      `(Playwright: ${playwrightLinks.length}, portal: ${portalLinks.length}, MD index: ${mdIndexLinks.length}, seed: ${seedLinks.length})`,
+  );
 
   if (documents.length > fetchLimit) {
     documents = documents.slice(0, fetchLimit);
