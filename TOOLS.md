@@ -1,6 +1,16 @@
 # Tools — India RBI Cybersecurity MCP
 
-All tools use the `in_rbi_` prefix. Every response includes a `_meta` object with `disclaimer`, `data_age`, and `source_url`.
+All tools use the `in_rbi_` prefix. Every response includes a `_meta` object with `disclaimer`, `data_age`, and `source_url`. Error responses additionally include an `_error_type` field (`NO_MATCH`, `INVALID_INPUT`, or `INTERNAL_ERROR`).
+
+| Tool | Purpose |
+|------|---------|
+| `in_rbi_search_regulations` | Combined full-text search across master directions and circulars |
+| `in_rbi_get_regulation` | Retrieve a specific master direction or circular by reference |
+| `in_rbi_search_master_directions` | Search master direction provisions with framework / domain filters |
+| `in_rbi_list_frameworks` | List all RBI frameworks and master directions |
+| `in_rbi_about` | Server metadata, version, coverage, freshness summary |
+| `in_rbi_list_sources` | Data provenance (sources.yml) |
+| `in_rbi_check_data_freshness` | Per-source freshness status and update instructions |
 
 ---
 
@@ -45,7 +55,7 @@ Full-text search across RBI cybersecurity master directions and regulatory circu
   "count": 1,
   "_meta": {
     "disclaimer": "This data is provided for informational reference only...",
-    "data_age": "See coverage.json; refresh frequency: monthly",
+    "data_age": "2026-04-14",
     "source_url": "https://rbi.org.in/Scripts/NotificationUser.aspx"
   }
 }
@@ -89,7 +99,7 @@ Get a specific RBI master direction or circular by its reference identifier.
   },
   "_meta": {
     "disclaimer": "This data is provided for informational reference only...",
-    "data_age": "See coverage.json; refresh frequency: monthly",
+    "data_age": "2026-04-14",
     "source_url": "https://rbi.org.in/Scripts/NotificationUser.aspx"
   }
 }
@@ -142,7 +152,7 @@ Search RBI master direction provisions with optional framework and domain filter
   "count": 1,
   "_meta": {
     "disclaimer": "This data is provided for informational reference only...",
-    "data_age": "See coverage.json; refresh frequency: monthly",
+    "data_age": "2026-04-14",
     "source_url": "https://rbi.org.in/Scripts/NotificationUser.aspx"
   }
 }
@@ -200,7 +210,7 @@ None.
   "count": 3,
   "_meta": {
     "disclaimer": "This data is provided for informational reference only...",
-    "data_age": "See coverage.json; refresh frequency: monthly",
+    "data_age": "2026-04-14",
     "source_url": "https://rbi.org.in/Scripts/NotificationUser.aspx"
   }
 }
@@ -235,11 +245,19 @@ None.
   "data_source": "Reserve Bank of India (RBI)",
   "source_url": "https://rbi.org.in/Scripts/NotificationUser.aspx",
   "coverage": {
-    "frameworks": "3 RBI frameworks / master directions",
-    "controls": "172 master direction provisions",
-    "circulars": "8 regulatory circulars",
+    "frameworks": "76 RBI frameworks / master directions",
+    "controls": "76 master direction provisions",
+    "circulars": "139 regulatory circulars",
     "jurisdictions": ["India"],
     "sectors": ["Banking", "NBFCs", "Payment Service Providers", "Digital Lending"]
+  },
+  "freshness": {
+    "database_built": "2026-04-14",
+    "source_count": 2
+  },
+  "network": {
+    "name": "Ansvar MCP Network",
+    "directory": "https://ansvar.ai/mcp"
   },
   "tools": [
     { "name": "in_rbi_search_regulations", "description": "..." },
@@ -247,11 +265,12 @@ None.
     { "name": "in_rbi_search_master_directions", "description": "..." },
     { "name": "in_rbi_list_frameworks", "description": "..." },
     { "name": "in_rbi_about", "description": "..." },
-    { "name": "in_rbi_list_sources", "description": "..." }
+    { "name": "in_rbi_list_sources", "description": "..." },
+    { "name": "in_rbi_check_data_freshness", "description": "..." }
   ],
   "_meta": {
     "disclaimer": "This data is provided for informational reference only...",
-    "data_age": "See coverage.json; refresh frequency: monthly",
+    "data_age": "2026-04-14",
     "source_url": "https://rbi.org.in/Scripts/NotificationUser.aspx"
   }
 }
@@ -284,8 +303,68 @@ None.
   "note": "Data is sourced from official RBI public notifications. See sources.yml for full provenance.",
   "_meta": {
     "disclaimer": "This data is provided for informational reference only...",
-    "data_age": "See coverage.json; refresh frequency: monthly",
+    "data_age": "2026-04-14",
     "source_url": "https://rbi.org.in/Scripts/NotificationUser.aspx"
   }
 }
 ```
+
+---
+
+## in_rbi_check_data_freshness
+
+Report the age of each RBI data source against its expected refresh frequency. Returns per-source status (`current` / `due_soon` / `overdue`), last-refresh date, expected refresh cadence, and database build date. Call this before relying on results for a compliance decision.
+
+### Parameters
+
+None.
+
+### Example Call
+
+```json
+{
+  "name": "in_rbi_check_data_freshness",
+  "arguments": {}
+}
+```
+
+### Example Response
+
+```json
+{
+  "database_built": "2026-04-14",
+  "sources": [
+    {
+      "name": "RBI Notifications (Playwright ViewState replay)",
+      "url": "https://rbi.org.in/Scripts/NotificationUser.aspx",
+      "last_fetched": "2026-04-14",
+      "update_frequency": "monthly",
+      "max_age_days": 31,
+      "age_days": 0,
+      "status": "current",
+      "note": "last fetched 0d ago (within monthly window)"
+    }
+  ],
+  "any_stale": false,
+  "update_instructions": "To refresh data, run `npm run ingest:full` locally or trigger the `ingest.yml` workflow on GitHub.",
+  "_meta": {
+    "disclaimer": "This data is provided for informational reference only...",
+    "data_age": "2026-04-14",
+    "source_url": "https://rbi.org.in/Scripts/NotificationUser.aspx"
+  }
+}
+```
+
+---
+
+## Error Responses
+
+Any tool can return a structured error with an `_error_type` field:
+
+| `_error_type` | Meaning |
+|---|---|
+| `NO_MATCH` | Lookup or search returned no results in the current database |
+| `INVALID_INPUT` | Malformed or out-of-range parameters (fails Zod validation) |
+| `INTERNAL_ERROR` | Unexpected server error |
+
+All error responses include the standard `_meta` object.

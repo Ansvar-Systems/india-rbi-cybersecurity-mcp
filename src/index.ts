@@ -49,6 +49,37 @@ try {
   // fallback
 }
 
+interface CoverageFile {
+  generatedAt?: string;
+  mcp?: string;
+  version?: string;
+  sources?: Array<{
+    name: string;
+    url?: string;
+    last_fetched?: string | null;
+    update_frequency?: string;
+    item_count?: number;
+    status?: string;
+  }>;
+  totals?: Record<string, number>;
+}
+
+let coverageJson: CoverageFile | null = null;
+try {
+  coverageJson = JSON.parse(
+    readFileSync(join(__dirname, "..", "data", "coverage.json"), "utf8"),
+  ) as CoverageFile;
+} catch {
+  coverageJson = null;
+}
+
+function currentDataAge(): string {
+  if (coverageJson?.generatedAt) {
+    return coverageJson.generatedAt.slice(0, 10);
+  }
+  return "unknown";
+}
+
 const SERVER_NAME = "india-rbi-cybersecurity-mcp";
 
 const DISCLAIMER =
@@ -180,6 +211,19 @@ const TOOLS = [
       required: [],
     },
   },
+  {
+    name: "in_rbi_check_data_freshness",
+    description:
+      "Report the age of each RBI data source against its expected refresh frequency. " +
+      "Returns per-source status (current / due-soon / overdue), last-refresh date, " +
+      "expected refresh cadence, and database build date. Use this before relying on " +
+      "results for compliance decisions.",
+    inputSchema: {
+      type: "object" as const,
+      properties: {},
+      required: [],
+    },
+  },
 ];
 
 // --- Zod schemas --------------------------------------------------------------
@@ -209,18 +253,100 @@ function textContent(data: unknown) {
   };
 }
 
-function errorContent(message: string) {
+type ErrorType = "NO_MATCH" | "INVALID_INPUT" | "INTERNAL_ERROR";
+
+function errorContent(message: string, errorType: ErrorType = "INTERNAL_ERROR") {
   return {
     content: [{ type: "text" as const, text: message }],
     isError: true as const,
+    _error_type: errorType,
+    _meta: buildMeta(),
   };
 }
 
 function buildMeta(sourceUrl?: string): Record<string, unknown> {
   return {
     disclaimer: DISCLAIMER,
-    data_age: "See coverage.json; refresh frequency: monthly",
+    data_age: currentDataAge(),
     source_url: sourceUrl ?? SOURCE_URL,
+  };
+}
+
+interface FreshnessSourceReport {
+  name: string;
+  url: string;
+  last_fetched: string | null;
+  update_frequency: string;
+  max_age_days: number;
+  age_days: number | null;
+  status: "current" | "due_soon" | "overdue" | "unknown";
+  note: string;
+}
+
+const FREQUENCY_DAYS: Record<string, number> = {
+  daily: 1,
+  weekly: 7,
+  monthly: 31,
+  quarterly: 92,
+  annually: 365,
+};
+
+function buildFreshnessReport(): {
+  database_built: string;
+  sources: FreshnessSourceReport[];
+  any_stale: boolean;
+  update_instructions: string;
+} {
+  const sources = coverageJson?.sources ?? [];
+  const now = Date.now();
+  const reports: FreshnessSourceReport[] = [];
+  let anyStale = false;
+
+  for (const src of sources) {
+    const freq = (src.update_frequency ?? "monthly").toLowerCase();
+    const maxAgeDays = FREQUENCY_DAYS[freq] ?? 31;
+    const maxAgeMs = maxAgeDays * 24 * 60 * 60 * 1000;
+
+    let ageDays: number | null = null;
+    let status: FreshnessSourceReport["status"] = "unknown";
+    let note = "no last_fetched recorded";
+
+    if (src.last_fetched) {
+      const lastMs = new Date(src.last_fetched).getTime();
+      if (!Number.isNaN(lastMs)) {
+        ageDays = Math.floor((now - lastMs) / (24 * 60 * 60 * 1000));
+        if (now - lastMs > maxAgeMs) {
+          status = "overdue";
+          note = `last fetched ${ageDays}d ago (max ${maxAgeDays}d for ${freq})`;
+          anyStale = true;
+        } else if (now - lastMs > maxAgeMs * 0.8) {
+          status = "due_soon";
+          note = `last fetched ${ageDays}d ago; refresh due within ${maxAgeDays - ageDays}d`;
+        } else {
+          status = "current";
+          note = `last fetched ${ageDays}d ago (within ${freq} window)`;
+        }
+      }
+    }
+
+    reports.push({
+      name: src.name,
+      url: src.url ?? SOURCE_URL,
+      last_fetched: src.last_fetched ?? null,
+      update_frequency: freq,
+      max_age_days: maxAgeDays,
+      age_days: ageDays,
+      status,
+      note,
+    });
+  }
+
+  return {
+    database_built: currentDataAge(),
+    sources: reports,
+    any_stale: anyStale,
+    update_instructions:
+      "To refresh data, run `npm run ingest:full` locally or trigger the `ingest.yml` workflow on GitHub.",
   };
 }
 
@@ -285,6 +411,7 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
         return errorContent(
           `No master direction or circular found with reference: ${docId}. ` +
             "Use in_rbi_search_regulations to find available references.",
+          "NO_MATCH",
         );
       }
 
@@ -330,6 +457,14 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
             jurisdictions: ["India"],
             sectors: ["Banking", "NBFCs", "Payment Service Providers", "Digital Lending"],
           },
+          freshness: {
+            database_built: currentDataAge(),
+            source_count: coverageJson?.sources?.length ?? 0,
+          },
+          network: {
+            name: "Ansvar MCP Network",
+            directory: "https://ansvar.ai/mcp",
+          },
           tools: TOOLS.map((t) => ({ name: t.name, description: t.description })),
           _meta: buildMeta(),
         });
@@ -343,12 +478,24 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
         });
       }
 
+      case "in_rbi_check_data_freshness": {
+        const report = buildFreshnessReport();
+        return textContent({ ...report, _meta: buildMeta() });
+      }
+
       default:
-        return errorContent(`Unknown tool: ${name}`);
+        return errorContent(`Unknown tool: ${name}`, "INVALID_INPUT");
     }
   } catch (err) {
+    if (err instanceof z.ZodError) {
+      return errorContent(
+        `Invalid arguments for ${name}: ${err.issues.map((i) => `${i.path.join(".")}: ${i.message}`).join("; ")}`,
+        "INVALID_INPUT",
+      );
+    }
     return errorContent(
       `Error executing ${name}: ${err instanceof Error ? err.message : String(err)}`,
+      "INTERNAL_ERROR",
     );
   }
 });

@@ -60,6 +60,7 @@ docker run -p 9191:9191 ghcr.io/ansvar-systems/india-rbi-cybersecurity-mcp:lates
 | `in_rbi_list_frameworks` | List all RBI frameworks with version and direction counts |
 | `in_rbi_about` | Server metadata, version, and coverage summary |
 | `in_rbi_list_sources` | Data provenance: sources, retrieval method, licensing |
+| `in_rbi_check_data_freshness` | Per-source freshness status and update instructions |
 
 See [TOOLS.md](TOOLS.md) for parameters, return formats, and examples.
 
@@ -67,10 +68,31 @@ See [TOOLS.md](TOOLS.md) for parameters, return formats, and examples.
 
 All data is sourced from official RBI public notifications:
 
-- [RBI Notifications Portal](https://rbi.org.in/Scripts/NotificationUser.aspx)
-- [RBI Master Directions](https://rbi.org.in/Scripts/BS_ViewMasCirculardetails.aspx)
+- [RBI Notifications Portal](https://rbi.org.in/Scripts/NotificationUser.aspx) — retrieved via Playwright ViewState replay (ASP.NET `GetYearMonth()` postback), 2015-present, 12-year archive enumeration
+- [RBI Master Directions Index](https://rbi.org.in/Scripts/BS_ViewMasterDirections.aspx) — static HTML scrape
 
-See [sources.yml](sources.yml) for full provenance details.
+Ingestion is rate-limited (5s between postbacks) with real Chrome UA. `rbi.org.in/robots.txt` returns an "Unauthorised Access" page with no machine-readable Disallow directives; the pipeline proceeds on that defensive basis and documents the position in `sources.yml`.
+
+See [sources.yml](sources.yml) and [COVERAGE.md](COVERAGE.md) for full provenance, retrieval method, and limitations.
+
+## Data Freshness
+
+| Source | Refresh | Last Run | Tool |
+|--------|---------|----------|------|
+| RBI Notifications | monthly | 2026-04-14 | `in_rbi_check_data_freshness` |
+| RBI Master Directions Index | monthly | 2026-04-14 | `in_rbi_check_data_freshness` |
+
+Daily GitHub Action (`check-freshness.yml`) raises an issue if any source is past its refresh window. Monthly ingestion workflow (`ingest.yml`) re-runs the Playwright enumeration and rebuilds the database.
+
+## Security
+
+| Scanner | When | Blocks? |
+|---------|------|---------|
+| Semgrep | push + PR | yes (high / critical) |
+| Trivy   | weekly filesystem scan | alert only |
+| OSSF Scorecard | weekly | metrics only |
+
+See [SECURITY.md](SECURITY.md) for vulnerability disclosure.
 
 ## Development
 
