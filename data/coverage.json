@@ -1,0 +1,20 @@
+{
+  "generatedAt": "2026-04-14T06:17:59.525Z",
+  "mcp": "india-rbi-cybersecurity-mcp",
+  "version": "0.1.0",
+  "sources": [
+    {
+      "name": "RBI Master Directions & Circulars",
+      "url": "https://rbi.org.in/Scripts/NotificationUser.aspx",
+      "last_fetched": null,
+      "update_frequency": "monthly",
+      "item_count": 43,
+      "status": "current"
+    }
+  ],
+  "totals": {
+    "frameworks": 10,
+    "controls": 10,
+    "circulars": 23
+  }
+}
