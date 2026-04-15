@@ -1,0 +1,88 @@
+{
+  "schema_version": "1.0",
+  "mcp_name": "india-rbi-cybersecurity-mcp",
+  "mcp_type": "regulatory_publications",
+  "jurisdiction": "IN",
+  "jurisdiction_name": "India",
+  "authority": "Reserve Bank of India (RBI)",
+  "portal": "https://rbi.org.in",
+  "census_date": "2026-04-14",
+  "agent": "claude-opus-4-6",
+  "summary": {
+    "total_sources": 2,
+    "total_frameworks": 76,
+    "total_provisions": 76,
+    "total_circulars": 139,
+    "total_rows": 291,
+    "fully_ingested": 291,
+    "partial": 0,
+    "excluded": 0
+  },
+  "sources": [
+    {
+      "id": "rbi-notifications",
+      "name": "RBI Notifications",
+      "portal_url": "https://rbi.org.in/Scripts/NotificationUser.aspx",
+      "retrieval_method": "playwright_viewstate_replay",
+      "update_frequency": "monthly",
+      "item_type": "circulars",
+      "document_count": 139,
+      "expected_items": 139,
+      "last_scraped": "2026-04-14",
+      "ingested_count": 139,
+      "completeness": "cyber_filtered_full"
+    },
+    {
+      "id": "rbi-master-directions",
+      "name": "RBI Master Directions Index",
+      "portal_url": "https://rbi.org.in/Scripts/BS_ViewMasterDirections.aspx",
+      "retrieval_method": "html_scrape",
+      "update_frequency": "monthly",
+      "item_type": "master_directions",
+      "document_count": 76,
+      "expected_items": 76,
+      "last_scraped": "2026-04-14",
+      "ingested_count": 76,
+      "completeness": "index_level_full"
+    }
+  ],
+  "framework_domains": [
+    { "domain": "Regulatory (cross-cutting)", "framework_count": 36 },
+    { "domain": "Outsourcing", "framework_count": 16 },
+    { "domain": "Digital Payments", "framework_count": 9 },
+    { "domain": "IT Governance", "framework_count": 7 },
+    { "domain": "Fraud Management", "framework_count": 4 },
+    { "domain": "Cybersecurity", "framework_count": 3 },
+    { "domain": "Digital Lending", "framework_count": 1 }
+  ],
+  "circular_categories": [
+    { "category": "Regulatory", "count": 67 },
+    { "category": "Digital Payments", "count": 31 },
+    { "category": "Fraud Management", "count": 13 },
+    { "category": "IT Governance", "count": 13 },
+    { "category": "Outsourcing", "count": 6 },
+    { "category": "Cybersecurity", "count": 3 },
+    { "category": "Payment Security", "count": 3 },
+    { "category": "Virtual Currencies", "count": 2 },
+    { "category": "Business Continuity", "count": 1 }
+  ],
+  "highlighted_documents": [
+    "Cyber Security Framework in Banks (RBI/2015-16/418, 2016)",
+    "Master Direction on IT Governance, Risk Management, Controls & Assurance Practices (2023)",
+    "Master Direction on Digital Payment Security Controls (2021, updated 2024)",
+    "Master Directions on Cyber Resilience and Digital Payment Security Controls for non-bank PSOs (2024)",
+    "Master Directions on Fraud Risk Management (2024)",
+    "Master Direction – Information Technology Framework for the NBFC Sector",
+    "Guidelines on Digital Lending (2022)",
+    "Comprehensive Cyber Security Framework for Primary (Urban) Cooperative Banks (2019)",
+    "Tokenisation – Card-on-File (CoFT) Services"
+  ],
+  "exclusions": [
+    "RBI enforcement orders and penalties (not on notifications portal)",
+    "Hindi-language publications (English focus for v1)",
+    "Circulars before 2015 (lower IT/cyber relevance, patchy portal coverage)",
+    "Non-cyber RBI circulars (dropped by CYBER_KEYWORDS filter)",
+    "Master direction clause-level body text (next sprint — currently index-level only)",
+    "SEBI / IRDAI / NPCI cybersecurity frameworks (separate MCPs)"
+  ]
+}

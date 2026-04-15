@@ -1,22 +1,47 @@
 {
-  "generatedAt": "2026-04-14T10:50:28.065Z",
+  "schema_version": "1.0",
+  "generatedAt": "2026-04-14T21:00:00.000Z",
   "mcp": "india-rbi-cybersecurity-mcp",
+  "mcp_type": "regulatory_publications",
   "version": "0.1.0",
+  "scope_statement": "Cyber and IT-relevant master directions, frameworks, and circulars published by the Reserve Bank of India on the notifications portal and master-directions index (2015-present).",
+  "scope_exclusions": [
+    "RBI enforcement orders and penalty decisions (not on the notifications portal)",
+    "Hindi-language publications (English focus for v1)",
+    "Circulars dated before 2015 (lower IT/cyber relevance, patchy portal coverage)",
+    "Non-cyber RBI circulars outside the CYBER_KEYWORDS filter",
+    "Master direction clause-level body provisions (currently index-level only)",
+    "SEBI / IRDAI / NPCI cybersecurity frameworks (separate MCPs cover those)"
+  ],
   "sources": [
     {
+      "id": "rbi-notifications",
       "name": "RBI Notifications (Playwright ViewState replay)",
+      "authority": "Reserve Bank of India",
       "url": "https://rbi.org.in/Scripts/NotificationUser.aspx",
       "last_fetched": "2026-04-14",
+      "last_verified": "2026-04-14",
       "update_frequency": "monthly",
       "item_count": 139,
+      "expected_items": 139,
+      "measurement_unit": "circulars",
+      "verification_method": "page_scraped",
+      "completeness": "full",
       "status": "current"
     },
     {
+      "id": "rbi-master-directions",
       "name": "RBI Master Directions (BS_ViewMasterDirections.aspx)",
+      "authority": "Reserve Bank of India",
       "url": "https://rbi.org.in/Scripts/BS_ViewMasterDirections.aspx",
       "last_fetched": "2026-04-14",
+      "last_verified": "2026-04-14",
       "update_frequency": "monthly",
-      "item_count": 152,
+      "item_count": 76,
+      "expected_items": 76,
+      "measurement_unit": "master_directions",
+      "verification_method": "page_scraped",
+      "completeness": "full",
       "status": "current"
     }
   ],
@@ -24,5 +49,9 @@
     "frameworks": 76,
     "controls": 76,
     "circulars": 139
+  },
+  "summary": {
+    "total_items": 291,
+    "total_sources": 2
   }
 }
