@@ -12,13 +12,24 @@ cloud, CERT-In, incidents, vulnerabilities, UPI, KYC, digital banking channels,
 credit/debit card issuance and conduct, credit information reporting, authentication
 mechanisms, Aadhaar, biometric, etc.).
 
-| Source | Items | Version | Completeness | Refresh |
-|--------|-------|---------|--------------|---------|
-| RBI Notifications (year/month accordion, Playwright-driven) | 169 notifications | 2015–2026 | Full cyber-filtered archive | Monthly |
-| RBI Master Directions (BS_ViewMasDirections.aspx index, IT/cyber filtered) | 52 directions | 2015–2026 | High | Monthly |
-| RBI Notifications (curated Id-addressed seed) | 4 notifications | 2016–2022 | Supplementary | Monthly |
+| Source | Items fetched | Version | Completeness | Refresh |
+|--------|---------------|---------|--------------|---------|
+| RBI Notifications (year/month Playwright enumeration) | 173 HTML files | 2015–2026 | Full cyber-filtered archive | Monthly |
+| RBI Master Directions (`BS_ViewMasDirections.aspx` index, IT/cyber filtered) | 52 HTML files | 2015–2026 | Full — 344 MDs on portal, 52 match cyber filter | Monthly |
+
+After dedup and classification, these 225 fetched HTML files become:
 
 **Database totals:** 76 frameworks, 76 controls, 139 circulars — **291 rows total**.
+
+| Storage breakdown | From MD index | From Notifications portal | Total |
+|-------------------|---------------|---------------------------|-------|
+| `frameworks` table | 23 | 53 | 76 |
+| `circulars` table | 29 | 110 | 139 |
+| **Total** | **52** | **163** | **215 unique docs** |
+
+The 52-from-MD-index row exactly matches the live RBI `BS_ViewMasterDirections.aspx` portal count filtered by the cyber/IT keyword set (verified 2026-04-14). The 163-from-Notifications portal figure reflects 173 scraped HTML files minus 10 that duplicated MDs already stored (same `Id=`).
+
+> Classification split: `build-db.ts:classifyDocument()` places a document in `frameworks` when its title contains "framework", "standard", or "guideline"; otherwise in `circulars`. Four flagship Master Directions whose titles do not match those keywords live in the `circulars` table (DPSC id=12032, IT Governance id=12562, Fraud Risk Management id=12702/12703/12704, Authentication Mechanisms id=12898, Cyber Resilience for non-bank PSOs id=12715). They are retrievable via `in_rbi_search_master_directions`, which searches both tables.
 
 ### How ingestion works
 

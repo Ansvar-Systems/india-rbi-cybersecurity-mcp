@@ -1,48 +1,50 @@
 {
   "schema_version": "1.0",
-  "generatedAt": "2026-04-14T21:00:00.000Z",
+  "generatedAt": "2026-04-14T19:46:46.465Z",
   "mcp": "india-rbi-cybersecurity-mcp",
   "mcp_type": "regulatory_publications",
   "version": "0.1.0",
-  "scope_statement": "Cyber and IT-relevant master directions, frameworks, and circulars published by the Reserve Bank of India on the notifications portal and master-directions index (2015-present).",
+  "scope_statement": "Cyber and IT-relevant Master Directions and circulars published by the Reserve Bank of India on the Notifications portal and Master Directions index (2015-present), filtered by the CYBER_KEYWORDS title list in scripts/ingest-fetch.ts (cybersecurity, IT governance, digital payments, KYC, outsourcing, fraud, card security, etc.). This is a cyber-filtered subset of RBI publications, not the full RBI corpus.",
   "scope_exclusions": [
     "RBI enforcement orders and penalty decisions (not on the notifications portal)",
     "Hindi-language publications (English focus for v1)",
     "Circulars dated before 2015 (lower IT/cyber relevance, patchy portal coverage)",
-    "Non-cyber RBI circulars outside the CYBER_KEYWORDS filter",
+    "Non-cyber RBI publications outside the CYBER_KEYWORDS filter (e.g. monetary-policy, forex, agricultural credit)",
     "Master direction clause-level body provisions (currently index-level only)",
     "SEBI / IRDAI / NPCI cybersecurity frameworks (separate MCPs cover those)"
   ],
   "sources": [
     {
       "id": "rbi-notifications",
-      "name": "RBI Notifications (Playwright ViewState replay)",
+      "name": "RBI Notifications (Playwright ViewState replay of year-month accordion)",
       "authority": "Reserve Bank of India",
       "url": "https://rbi.org.in/Scripts/NotificationUser.aspx",
       "last_fetched": "2026-04-14",
       "last_verified": "2026-04-14",
       "update_frequency": "monthly",
-      "item_count": 139,
-      "expected_items": 139,
+      "item_count": 163,
+      "expected_items": 163,
       "measurement_unit": "circulars",
       "verification_method": "page_scraped",
       "completeness": "full",
-      "status": "current"
+      "status": "current",
+      "notes": "~3,100 circulars scanned across 2015-2026; 163 survived cyber keyword filter and are stored across the frameworks (53) and circulars (110) tables by classifyDocument()."
     },
     {
       "id": "rbi-master-directions",
-      "name": "RBI Master Directions (BS_ViewMasterDirections.aspx)",
+      "name": "RBI Master Directions (BS_ViewMasterDirections.aspx static index)",
       "authority": "Reserve Bank of India",
       "url": "https://rbi.org.in/Scripts/BS_ViewMasterDirections.aspx",
       "last_fetched": "2026-04-14",
       "last_verified": "2026-04-14",
       "update_frequency": "monthly",
-      "item_count": 76,
-      "expected_items": 76,
+      "item_count": 52,
+      "expected_items": 52,
       "measurement_unit": "master_directions",
       "verification_method": "page_scraped",
       "completeness": "full",
-      "status": "current"
+      "status": "current",
+      "notes": "RBI portal lists ~344 active Master Directions in total; 52 match the cyber/IT keyword filter. Stored across the frameworks (23) and circulars (29) tables by classifyDocument(); the circulars-table MDs include flagship cyber documents (IDs 12032, 12562, 12702, 12703, 12704, 12715, 12898) whose titles do not contain the keywords 'framework', 'standard', or 'guideline' that trigger framework classification."
     }
   ],
   "totals": {
@@ -52,6 +54,8 @@
   },
   "summary": {
     "total_items": 291,
-    "total_sources": 2
+    "total_sources": 2,
+    "unique_documents": 215,
+    "breakdown_note": "215 unique documents = 52 from Master Directions index + 163 from Notifications portal (post cyber-filter, post dedup). Stored as 76 framework rows + 139 circular rows + 76 control rows (one per framework, index-level only) = 291 total rows. The 'frameworks' vs 'circulars' split is classification by title keyword, not by source."
   }
 }

@@ -50,7 +50,7 @@ sources:
         Digital Lending Guidelines (2022); Tokenisation / Card-on-File;
         related circulars.
       version: "Current"
-      item_count: "76 master-direction provisions, 139 cybersecurity circulars (2015-2026)"
+      item_count: "163 cyber/IT-relevant circulars from the Notifications portal (stored as 53 framework rows + 110 circular rows based on title-keyword classification), 2015-2026"
     languages:
       - "en"
 
@@ -66,8 +66,11 @@ sources:
       url: "https://rbi.org.in"
       summary: "Public RBI master directions index, no postback needed"
     coverage:
-      scope: "Static index of current Master Directions filtered for IT and cybersecurity relevance"
+      scope: >
+        Static index of current Master Directions filtered for IT and cybersecurity
+        relevance. Verified against the live portal on 2026-04-14: 344 total Master
+        Directions listed, 52 match the cyber / IT keyword filter in scripts/ingest-fetch.ts.
       version: "Current"
-      item_count: "76 frameworks tracked"
+      item_count: "52 cyber/IT-relevant Master Directions (23 stored in frameworks table, 29 in circulars table by title-keyword classification)"
     languages:
       - "en"
